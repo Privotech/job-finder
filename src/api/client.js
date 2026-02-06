@@ -81,6 +81,7 @@ export const resumesApi = {
 };
 
 export const employerApi = {
+  summary: () => request("/api/employer/summary"),
   jobs: () => request("/api/employer/jobs"),
   createJob: (body) =>
     request("/api/employer/jobs", {
