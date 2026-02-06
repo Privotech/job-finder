@@ -97,9 +97,9 @@ export function ApplicantView() {
                 >
                   <td className="py-3">
                     <span className="font-medium text-gray-900 dark:text-white">
-                      {app.candidate?.name ??
-                        app.candidate?.email ??
-                        "Candidate"}
+                      {app.candidate?.name ||
+                        app.candidate?.email ||
+                        "Unknown Candidate"}
                     </span>
                     {app.coverLetter && (
                       <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 truncate max-w-xs">

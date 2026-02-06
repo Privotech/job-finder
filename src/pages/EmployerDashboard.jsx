@@ -96,10 +96,8 @@ export function EmployerDashboard() {
         {isLoading ? (
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
         ) : jobs.length === 0 ? (
-          {/* Empty State */}
           <p className="text-gray-500 dark:text-gray-400">No jobs yet.</p>
         ) : (
-          {/* Job List */}
           <ul className="space-y-2">
             {jobs.slice(0, 5).map((job) => (
               <li key={job._id}>
@@ -127,7 +125,6 @@ export function EmployerDashboard() {
         )}
       </div>
 
-      {/* Company Profile Link */}
       <div className="mt-8">
         <Link
           to="/employer/company"
