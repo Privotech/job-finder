@@ -64,27 +64,78 @@ export function Navbar() {
         {/* Main navbar */}
         <div className="flex justify-between items-center h-16">
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="hover:text-sky-100 transition font-medium">
-              Job Seekers Home
-            </Link>
-            <Link
-              to="/dashboard"
-              className="hover:text-sky-100 transition font-medium"
-            >
-              Job Vacancies
-            </Link>
-            <Link
-              to="/dashboard"
-              className="hover:text-sky-100 transition font-medium"
-            >
-              Companies Hiring
-            </Link>
-            <Link
-              to="/employer"
-              className="hover:text-sky-100 transition font-medium"
-            >
-              Employers Home
-            </Link>
+            {user ? (
+              // Authenticated user: show role-specific navigation
+              user.role === "employer" ? (
+                <>
+                  <Link to="/employer" className="hover:text-sky-100 transition font-medium">
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/employer/jobs"
+                    className="hover:text-sky-100 transition font-medium"
+                  >
+                    My Jobs
+                  </Link>
+                  <Link
+                    to="/employer/company"
+                    className="hover:text-sky-100 transition font-medium"
+                  >
+                    Company Profile
+                  </Link>
+                </>
+              ) : user.role === "admin" ? (
+                <>
+                  <Link to="/admin" className="hover:text-sky-100 transition font-medium">
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/admin/users"
+                    className="hover:text-sky-100 transition font-medium"
+                  >
+                    Users
+                  </Link>
+                  <Link
+                    to="/admin/jobs"
+                    className="hover:text-sky-100 transition font-medium"
+                  >
+                    Jobs
+                  </Link>
+                </>
+              ) : (
+                // Job seeker navigation
+                <>
+                  <Link to="/dashboard" className="hover:text-sky-100 transition font-medium">
+                    Browse Jobs
+                  </Link>
+                  <Link
+                    to="/recommendations"
+                    className="hover:text-sky-100 transition font-medium"
+                  >
+                    Recommendations
+                  </Link>
+                  <Link
+                    to="/dashboard/resumes"
+                    className="hover:text-sky-100 transition font-medium"
+                  >
+                    My Resumes
+                  </Link>
+                </>
+              )
+            ) : (
+              // Guest: show public navigation
+              <>
+                <Link to="/" className="hover:text-sky-100 transition font-medium">
+                  Home
+                </Link>
+                <Link
+                  to="/login"
+                  className="hover:text-sky-100 transition font-medium"
+                >
+                  Browse Jobs
+                </Link>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button

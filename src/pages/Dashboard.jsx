@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { savedJobsApi, applicationsApi } from '../api/client';
+import { savedJobsApi, applicationsApi, jobsApi } from '../api/client';
 import { Layout } from '../components/Layout';
 import { JobCard } from '../components/JobCard';
+import { useAuth } from '../context/AuthContext';
 
 const statusLabels = {
   applied: 'Applied',
@@ -14,12 +15,20 @@ const statusLabels = {
 };
 
 const tabs = [
+  { id: 'recommended', label: 'Recommended for you' },
   { id: 'saved', label: 'Saved jobs' },
   { id: 'applications', label: 'My applications' },
 ];
 
 export function Dashboard() {
-  const [tab, setTab] = useState('saved');
+  const { user } = useAuth();
+  const [tab, setTab] = useState('recommended');
+
+  const { data: jobsData } = useQuery({
+    queryKey: ['jobs', { limit: 100 }],
+    queryFn: () => jobsApi.list({ limit: 100, page: 1 }),
+    enabled: tab === 'recommended',
+  });
 
   const { data: savedData } = useQuery({
     queryKey: ['saved'],
@@ -32,6 +41,38 @@ export function Dashboard() {
     enabled: tab === 'applications',
   });
 
+  // Filter jobs based on user profile
+  const filterJobsByProfile = (jobs) => {
+    if (!user?.profile) return jobs;
+    const { skills, preferredLocations, preferredRoles } = user.profile;
+    
+    return jobs.filter((job) => {
+      let score = 0;
+      
+      // Match skills
+      if (skills && job.skills) {
+        const matchedSkills = skills.filter((skill) =>
+          job.skills.some((jobSkill) => jobSkill.toLowerCase().includes(skill.toLowerCase()))
+        );
+        if (matchedSkills.length > 0) score += 2;
+      }
+      
+      // Match location
+      if (preferredLocations && preferredLocations.length > 0) {
+        const locationMatch = preferredLocations.some((loc) =>
+          job.location?.toLowerCase().includes(loc.toLowerCase()) ||
+          job.title?.toLowerCase().includes('remote')
+        );
+        if (locationMatch) score += 1;
+      }
+      
+      // Return jobs with at least one match
+      return score > 0;
+    });
+  };
+
+  const allJobs = jobsData?.data?.jobs ?? jobsData?.jobs ?? [];
+  const recommendedJobs = filterJobsByProfile(allJobs);
   const savedJobs = savedData?.data?.jobs ?? savedData?.jobs ?? [];
   const applications = appsData?.data ?? appsData ?? [];
 
@@ -63,7 +104,7 @@ export function Dashboard() {
             onClick={() => setTab(id)}
             className={`pb-3 px-1 font-medium border-b-2 -mb-px ${
               tab === id
-                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                ? 'border-sky-600 text-sky-600 dark:text-sky-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
@@ -71,6 +112,29 @@ export function Dashboard() {
           </button>
         ))}
       </div>
+
+      {tab === 'recommended' && (
+        <div className="space-y-4">
+          {recommendedJobs.length === 0 ? (
+            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+              <p>No recommended jobs yet. Complete your profile to get better recommendations.</p>
+              <Link to="/dashboard/profile" className="underline mt-2 inline-block">
+                Update your profile →
+              </Link>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {recommendedJobs.length} job{recommendedJobs.length !== 1 ? 's' : ''} matching your profile
+              </p>
+              {recommendedJobs.map((job) => (
+                <JobCard key={job._id} job={job} />
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
       {tab === 'saved' && (
         <div className="space-y-4">
           {savedJobs.length === 0 ? (

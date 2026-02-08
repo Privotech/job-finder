@@ -66,6 +66,7 @@ export function Home() {
           <div className="absolute inset-0 bg-pattern"></div>
         </div>
         <div className="relative z-10 max-w-4xl mx-auto">
+          
           {/* User Avatar Display */}
           {user && (
             <div className="flex items-center gap-3 mb-6 pb-6 border-b border-sky-500">
@@ -316,7 +317,7 @@ export function Home() {
                     {job.title}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-2">
-                    {job.company || "Company"}
+                    {job.company?.name || job.company || "Company"}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     {job.location}
