@@ -120,6 +120,12 @@ export function Navbar() {
                   >
                     My Resumes
                   </Link>
+                  <Link
+                    to="/dashboard?tab=saved"
+                    className="hover:text-sky-100 transition font-medium"
+                  >
+                    Saved Jobs
+                  </Link>
                 </>
               )
             ) : (
@@ -188,6 +194,15 @@ export function Navbar() {
                       >
                         Profile
                       </Link>
+                      {isJobSeeker && (
+                        <Link
+                          to="/dashboard?tab=saved"
+                          className="block px-4 py-2 text-sm hover:bg-gray-100"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Saved Jobs
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="block w-full text-left px-4 py-2 text-sm text-sky-600 hover:bg-gray-100"

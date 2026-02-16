@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { savedJobsApi, applicationsApi, jobsApi } from '../api/client';
 import { Layout } from '../components/Layout';
 import { JobCard } from '../components/JobCard';
@@ -22,18 +22,53 @@ const tabs = [
 
 export function Dashboard() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('recommended');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'recommended';
+  const [tab, setTab] = useState(initialTab);
+  useEffect(() => {
+    const t = searchParams.get('tab') || 'recommended';
+    if (t !== tab) setTab(t);
+  }, [searchParams]);
+  const queryClient = useQueryClient();
+  const keyword = searchParams.get('keyword') || '';
+  const location = searchParams.get('location') || '';
+  const country = searchParams.get('country') || searchParams.get('region') || '';
+  const employmentType = searchParams.get('employmentType') || '';
+  const salaryMin = searchParams.get('salaryMin') || '';
+  const salaryMax = searchParams.get('salaryMax') || '';
+  const hasSearch =
+    !!keyword || !!location || !!country || !!employmentType || !!salaryMin || !!salaryMax;
 
   const { data: jobsData } = useQuery({
-    queryKey: ['jobs', { limit: 100 }],
-    queryFn: () => jobsApi.list({ limit: 100, page: 1 }),
+    queryKey: [
+      'jobs',
+      {
+        limit: 100,
+        keyword,
+        location,
+        country,
+        employmentType,
+        salaryMin,
+        salaryMax,
+      },
+    ],
+    queryFn: () =>
+      jobsApi.list({
+        limit: 100,
+        page: 1,
+        keyword: keyword || undefined,
+        location: location || undefined,
+        country: country || undefined,
+        employmentType: employmentType || undefined,
+        salaryMin: salaryMin || undefined,
+        salaryMax: salaryMax || undefined,
+      }),
     enabled: tab === 'recommended',
   });
 
   const { data: savedData } = useQuery({
     queryKey: ['saved'],
     queryFn: () => savedJobsApi.list(),
-    enabled: tab === 'saved',
   });
   const { data: appsData } = useQuery({
     queryKey: ['applications'],
@@ -72,9 +107,17 @@ export function Dashboard() {
   };
 
   const allJobs = jobsData?.data?.jobs ?? jobsData?.jobs ?? [];
-  const recommendedJobs = filterJobsByProfile(allJobs);
+  const recommendedJobs = hasSearch ? allJobs : filterJobsByProfile(allJobs);
   const savedJobs = savedData?.data?.jobs ?? savedData?.jobs ?? [];
   const applications = appsData?.data ?? appsData ?? [];
+  const savedSet = new Set(savedJobs.map((j) => j._id));
+  const saveMutation = useMutation({
+    mutationFn: ({ jobId, isSaved }) =>
+      isSaved ? savedJobsApi.remove(jobId) : savedJobsApi.add(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved'] });
+    },
+  });
 
   return (
     <Layout>
@@ -101,7 +144,12 @@ export function Dashboard() {
           <button
             key={id}
             type="button"
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id);
+              const next = new URLSearchParams(searchParams);
+              next.set('tab', id);
+              setSearchParams(next);
+            }}
             className={`pb-3 px-1 font-medium border-b-2 -mb-px ${
               tab === id
                 ? 'border-sky-600 text-sky-600 dark:text-sky-400'
@@ -117,18 +165,39 @@ export function Dashboard() {
         <div className="space-y-4">
           {recommendedJobs.length === 0 ? (
             <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
-              <p>No recommended jobs yet. Complete your profile to get better recommendations.</p>
-              <Link to="/dashboard/profile" className="underline mt-2 inline-block">
-                Update your profile →
-              </Link>
+              <p>
+                {hasSearch
+                  ? 'No jobs found for your search.'
+                  : 'No recommended jobs yet. Complete your profile to get better recommendations.'}
+              </p>
+              {!hasSearch && (
+                <Link to="/dashboard/profile" className="underline mt-2 inline-block">
+                  Update your profile →
+                </Link>
+              )}
             </div>
           ) : (
             <>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {recommendedJobs.length} job{recommendedJobs.length !== 1 ? 's' : ''} matching your profile
+                {recommendedJobs.length} job{recommendedJobs.length !== 1 ? 's' : ''}{' '}
+                {hasSearch ? 'matching your search' : 'matching your profile'}
               </p>
               {recommendedJobs.map((job) => (
-                <JobCard key={job._id} job={job} />
+                <div key={job._id} className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <JobCard job={job} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      saveMutation.mutate({ jobId: job._id, isSaved: savedSet.has(job._id) })
+                    }
+                    disabled={saveMutation.isPending}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                  >
+                    {savedSet.has(job._id) ? 'Unsave' : 'Save'}
+                  </button>
+                </div>
               ))}
             </>
           )}
@@ -138,9 +207,25 @@ export function Dashboard() {
       {tab === 'saved' && (
         <div className="space-y-4">
           {savedJobs.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400">No saved jobs. Browse and save jobs from the home page.</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              No saved jobs. Browse and save jobs from the home page.
+            </p>
           ) : (
-            savedJobs.map((job) => <JobCard key={job._id} job={job} />)
+            savedJobs.map((job) => (
+              <div key={job._id} className="flex items-center gap-3">
+                <div className="flex-1">
+                  <JobCard job={job} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveMutation.mutate({ jobId: job._id, isSaved: true })}
+                  disabled={saveMutation.isPending}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                >
+                  Unsave
+                </button>
+              </div>
+            ))
           )}
         </div>
       )}
